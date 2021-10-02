@@ -4,7 +4,7 @@ import { HttpProviderOptions } from 'web3-core-helpers'
 import { AbiItem } from 'web3-utils'
 import { Interface } from '@ethersproject/abi'
 import { NetworkTokens } from './consts/token';
-import { toWei } from './utils/math';
+import { div, fromWei, toWei } from './utils/math';
 const abiUniswapPairOracle = [
     {
         "inputs": [
@@ -174,62 +174,152 @@ const abiMulticall = [
 const chainId = 56
 const network = NetworkInt[chainId]
 const token = NetworkTokens[chainId][0]
-token
+// token
 const httpProvider = new Web3.providers.HttpProvider(network.rpcUrls[0], {
     timeout: 10000,
 } as HttpProviderOptions)
 
-console.log(abiUniswapPairOracle)
+// console.log(abiUniswapPairOracle)
 const web3 = new Web3(httpProvider)
-console.log(token.oracle)
+// console.log(token.oracle)
+
+// ; (async function () {
+//     const client = new web3.eth.Contract(
+//         [{
+//             "inputs": [
+//                 { "internalType": "address", "name": "token", "type": "address" },
+//                 { "internalType": "uint256", "name": "amountIn", "type": "uint256" }
+//             ],
+//             "name": "consult",
+//             "outputs": [{ "internalType": "uint256", "name": "amountOut", "type": "uint256" }],
+//             "stateMutability": "view",
+//             "type": "function"
+//         }] as any as AbiItem,
+//         '0x3c0Bba9a0b4D920e2d1809D5952b883ABEEa6B5b'
+//     )
+//     await client.methods.consult(token.address, toWei("1").toString()).call()
+// })()
+
+// ; (async function () {
+//     const client = new web3.eth.Contract(
+//         abiMulticall as unknown as AbiItem,
+//         '0x41263cba59eb80dc200f3e2544eda4ed6a90e76c'
+//     )
+//     console.log(client)
+
+//     const itf = new Interface(abiUniswapPairOracle)
+//     console.log(itf)
+
+//     const call = {
+//         address: token.oracle,
+//         name: 'consult',
+//         params: [token.address, toWei('1').toString()],
+//     }
+
+//     console.log(token.oracle)
+
+//     const addr = call?.address?.toLowerCase()
+//     const calldata = [
+//         [addr, itf.encodeFunctionData(call.name, call.params)]
+//     ]
+
+//     console.log(calldata)
+//     console.log(call)
+
+//     !(async function () {
+//         const { returnData } = await client.methods.aggregate(calldata).call()
+//         const res = returnData.map((call: any, i: number) => itf.decodeFunctionResult('consult', call))
+//         console.log(res[0].toString())
+//     })()
+// })();
 
 
-    ; (async function () {
-        const client = new web3.eth.Contract(
-            [{
-                "inputs": [
-                    { "internalType": "address", "name": "token", "type": "address" },
-                    { "internalType": "uint256", "name": "amountIn", "type": "uint256" }
-                ],
-                "name": "consult",
-                "outputs": [{ "internalType": "uint256", "name": "amountOut", "type": "uint256" }],
-                "stateMutability": "view",
-                "type": "function"
-            }] as any as AbiItem,
-            '0x3c0Bba9a0b4D920e2d1809D5952b883ABEEa6B5b'
-        )
-        console.log(await client.methods.consult(token.address, toWei("1").toString()).call())
-    })()
+// ; (async function () {
+//     setInterval(async function () {
+//         const client = new web3.eth.Contract(
+//             dopxKusdPair as any as AbiItem,
+//             '0x08422f6Cc26cCDa692a36a73A520Da6b0E6d3DE3'
+//         )
+//         // console.log(client.methods)
+//         // console.log(await client.methods.token0().call())
+//         // console.log(await client.methods.token1().call())
+//         // console.log( output._reserve0))
+//         const output = await client.methods.getReserves().call()
+//         console.log(fromWei(div(toWei(output._reserve1), toWei(output._reserve0))))
 
-    ; (async function () {
-        const client = new web3.eth.Contract(
-            abiMulticall as unknown as AbiItem,
-            '0x41263cba59eb80dc200f3e2544eda4ed6a90e76c'
-        )
-        console.log(client.methods)
+//     }, 500);
+// })()
 
-        const itf = new Interface(abiUniswapPairOracle)
-        console.log(itf)
+import { Contract, ContractOptions } from 'web3-eth-contract';
+const client = new web3.eth.Contract(
+    [{
+        "inputs": [
+            { "internalType": "address", "name": "token", "type": "address" },
+            { "internalType": "uint256", "name": "amountIn", "type": "uint256" }
+        ],
+        "name": "consult",
+        "outputs": [{ "internalType": "uint256", "name": "amountOut", "type": "uint256" }],
+        "stateMutability": "view",
+        "type": "function"
+    }] as any as AbiItem,
+    '0x3c0Bba9a0b4D920e2d1809D5952b883ABEEa6B5b'
+)
 
-        const call = {
-            address: token.oracle,
-            name: 'consult',
-            params: [token.address, toWei('1').toString()],
+// function zip(...args: any[]) {
+//     return args.reduce((acc, val) => {
+//         return acc.map((x: any, i: any) => [x, val[i]])
+//     }, [[]]) as any
+// }
+
+async function callMethods(contract: Contract, methods: any[]) {
+    const promisses: any = []
+    // const called = []
+    // console.log(contract)
+    // const answer: any = {}
+    for (const [idx, method] of Object.entries(methods)) {
+        const fn = contract.methods[`${method.name}`]
+        if (!method.name) return
+        if (!fn) throw new Error(`method ${method.name} not found`)
+
+        try {
+            promisses[idx] = fn
+                .apply(contract.methods, method.params || [])
+                .call()
+        }
+        catch (e) {
+            promisses[idx] = new Promise((resolve, reject) => reject(e))
+            throw e
         }
 
-        console.log(token.oracle)
+    }
+    let results: any = await Promise.allSettled(promisses)
+    return results.map((result: any, idx: number) => {
+        if (result.status === 'fulfilled') {
+            return result.value
+        }
+        else {
+            return result.reason
+        }
+    })
+    // return results
+}
+// const zeroParamsMethods = Object.values(abiTableData.indexedFuncs)
+// .filter((it) => it.inputs.length == 0 && it.stateMutability == 'view')
+// .map((it) => Object.assign({ name: it.name })
 
-        const addr = call?.address?.toLowerCase()
-        const calldata = [
-            [addr, itf.encodeFunctionData(call.name, call.params)]
-        ]
+!(async function () {
+    let results = await callMethods(client, [
+        {
+            name: 'consultx',
+            params: [token.address, toWei('1').toString()]
+        },
+        {
+            name: 'consult',
+            params: [token.address, toWei('1').toString()]
+        }
+    ])
+    console.log(results)
+})();
 
-        console.log(calldata)
-        console.log(call)
 
-        !(async function () {
-            const { returnData } = await client.methods.aggregate(calldata).call()
-            const res = returnData.map((call: any, i: number) => itf.decodeFunctionResult('consult', call))
-            console.log(res[0].toString())
-        })()
-    })();
+    // callMethods(contract, zeroParamsMethods)
